@@ -1,0 +1,294 @@
+{
+  "_meta": {
+    "description": "AccuRad PRD protocol constants extracted from DOC012721EN-E, Section 10.1",
+    "source": "DOC012721EN-E AccuRad user manual English, Revision E (2024-09)",
+    "purpose": "Token-efficient reference for Claude Code — avoids re-reading the 132-page PDF"
+  },
+
+  "transmission": {
+    "usb": {
+      "type": "USB Virtual COM Port",
+      "notes": "Speed limited only by host driver (USB emulates serial)"
+    },
+    "bluetooth": {
+      "type": "BLE (Bluetooth Low Energy)",
+      "speed_bps": 921600,
+      "uart_service_uuid": "49535343-FE7D-4AE5-8FA9-9FAFD205E455",
+      "uart_tx_uuid": "49535343-1E4D-4BD9-BA61-23C647249616",
+      "tx_properties": ["Notify", "Write", "Write without response"],
+      "post_connect_delay_s": 1.0,
+      "keepalive_max_interval_s": 2.5,
+      "discoverable_duration_s": 60,
+      "discoverable_trigger": "NFC scan or connection lost",
+      "discoverable_exception": "No timeout if Bluetooth set to 'opened' mode"
+    }
+  },
+
+  "frame_format": {
+    "start_marker": {
+      "ascii": "#!AccuRad!#",
+      "hex": "23 21 41 63 63 75 52 61 64 21 23",
+      "length_bytes": 11
+    },
+    "len_field": {
+      "size_bytes": 2,
+      "endian": "little",
+      "includes": ["ID (2 bytes)", "Payload (N bytes)", "CRC (2 bytes)"],
+      "formula": "LEN = N + 4",
+      "notes": "NOT N + 2. Verified against both example frames."
+    },
+    "id_field": {
+      "size_bytes": 2,
+      "endian": "little"
+    },
+    "payload": {
+      "variable_length": true,
+      "size_formula": "LEN - 4"
+    },
+    "crc_field": {
+      "size_bytes": 2,
+      "endian": "little",
+      "computed_on": "ID + payload (= XXXXX in manual, everything between LEN and CRC). NOT on start marker or LEN. Manual says 'CRC computed on XXXXX' where XXXXX includes ID."
+    },
+    "byte_order": "little-endian for multi-byte words",
+    "bit_order": "MSB first within each byte",
+    "data_packing": "packed, no alignment bytes"
+  },
+
+  "crc16": {
+    "polynomial": "0xAC5E",
+    "initial_value": "0xFFFF",
+    "algorithm": {
+      "description": "Custom CRC16 with zero-avoidance",
+      "steps": [
+        "Initialize CRC = 0xFFFF",
+        "For each byte: CRC ^= byte",
+        "If CRC == 0: CRC = 1 (zero avoidance)",
+        "For 8 bits: parity = CRC & 1; CRC >>= 1; if parity: CRC ^= 0xAC5E",
+        "Return CRC"
+      ],
+      "c_source": "U16 Crc16(const void* data, S16 sizeofData) { U16 Crc = 0xFFFF; for(ByteCnt=0; ByteCnt<sizeofData; ByteCnt++) { Crc ^= *(ptr+ByteCnt); if(Crc==0) Crc=1; for(BitCnt=0; BitCnt<=7; BitCnt++) { Parity=Crc; Crc>>=1; if((Parity&1)!=0) Crc^=POLYNOM16; } } return Crc; }"
+    }
+  },
+
+  "requests": {
+    "device_info": {
+      "id": 0,
+      "sequence_hex": "7E 04 00 10 A7 07 46 E7",
+      "sequence_bytes": [126, 4, 0, 16, 167, 7, 70, 231],
+      "warning": "Send as-is. Do NOT edit or reconstruct."
+    },
+    "device_measurements": {
+      "id": 1,
+      "sequence_hex": "7E 04 00 11 A7 1E 43 E7",
+      "sequence_bytes": [126, 4, 0, 17, 167, 30, 67, 231],
+      "warning": "Send as-is. Do NOT edit or reconstruct."
+    }
+  },
+
+  "data_types": {
+    "date_t": {
+      "total_size_bytes": 4,
+      "endian": "little",
+      "bitfields": [
+        {"name": "day_of_week", "bits": "0-2",  "size": 3,  "mask": "0x07"},
+        {"name": "day",         "bits": "3-7",  "size": 5,  "mask": "0x1F", "shift": 3},
+        {"name": "month",       "bits": "8-11", "size": 4,  "mask": "0x0F", "shift": 8},
+        {"name": "year",        "bits": "12-31","size": 20, "mask": "0xFFFFF", "shift": 12}
+      ],
+      "example": {
+        "hex": "0x007E42C1",
+        "raw_bytes_le": "C1 42 7E 00",
+        "decoded": {"day_of_week": 1, "day": 24, "month": 2, "year": 2020},
+        "human": "Monday 2020-02-24"
+      }
+    },
+    "time_t": {
+      "total_size_bytes": 4,
+      "endian": "little",
+      "bitfields": [
+        {"name": "hours",        "bits": "0-4",   "size": 5,  "mask": "0x1F"},
+        {"name": "minutes",      "bits": "5-10",  "size": 6,  "mask": "0x3F", "shift": 5},
+        {"name": "seconds",      "bits": "11-16", "size": 6,  "mask": "0x3F", "shift": 11},
+        {"name": "milliseconds", "bits": "17-29", "size": 13, "mask": "0x1FFF", "shift": 17},
+        {"name": "daylight",     "bits": "30-31", "size": 2,  "mask": "0x03", "shift": 30,
+         "values": {"0": "none", "1": "add 1 hour", "2": "subtract 1 hour"}}
+      ],
+      "example": {
+        "hex": "0x066841EE",
+        "raw_bytes_le": "EE 41 68 06",
+        "decoded": {"hours": 14, "minutes": 15, "seconds": 8, "milliseconds": 820, "daylight": 0},
+        "human": "14:15:08.820"
+      }
+    },
+    "datetime_t": {
+      "total_size_bytes": 8,
+      "layout": ["time_t (4 bytes)", "date_t (4 bytes)"],
+      "note": "Time comes FIRST, then Date"
+    }
+  },
+
+  "payloads": {
+    "id_0_device_info": {
+      "frame_id": 0,
+      "len_value": 69,
+      "payload_size_bytes": 65,
+      "total_frame_bytes": 82,
+      "fields": [
+        {"offset": 0,  "size": 16, "name": "manufacturer",     "type": "string", "zero_terminated": true},
+        {"offset": 16, "size": 16, "name": "part_number",      "type": "string", "zero_terminated": true},
+        {"offset": 32, "size": 16, "name": "serial_number",    "type": "string", "zero_terminated": true},
+        {"offset": 48, "size": 4,  "name": "firmware_number",  "type": "uint32_le"},
+        {"offset": 52, "size": 4,  "name": "firmware_version", "type": "uint32_le", "format": "0xAABBCCDD => AA.BB.CC.DD"},
+        {"offset": 56, "size": 4,  "name": "time",             "type": "time_t"},
+        {"offset": 60, "size": 4,  "name": "date",             "type": "date_t"},
+        {"offset": 64, "size": 1,  "name": "timezone_index",   "type": "uint8"}
+      ],
+      "struct_c": "typedef struct { char Manufacturer[16]; char PN[16]; char SN[16]; uint32_t FirmwareNumber; uint32_t FirmwareVersion; DateTime_t DateTime; uint8_t TimeZone; } Device_Information_t;",
+      "example_frame": {
+        "full_hex": "23 21 41 63 63 75 52 61 64 21 23 45 00 00 00 4D 41 4E 55 46 41 43 54 55 52 45 52 00 00 00 00 4E 4F 4D 30 30 34 35 33 37 2D 43 00 00 00 00 00 30 30 30 30 32 34 00 00 00 00 00 00 00 00 00 00 0B 06 00 00 00 00 01 01 EE 41 68 06 C1 42 7E 00 0E 02 5B",
+        "decoded": {
+          "manufacturer": "MANUFACTURER",
+          "part_number": "NOM004537-C",
+          "serial_number": "000024",
+          "firmware_number": 1547,
+          "firmware_version": "1.1.0.0",
+          "time": "14:15:08.820",
+          "date": "2020-02-24 (Monday)",
+          "timezone": "14 = UTC+00:00 (London)",
+          "crc": "0x5B02"
+        }
+      }
+    },
+    "id_1_device_data": {
+      "frame_id": 1,
+      "len_value": 51,
+      "payload_size_bytes": 47,
+      "total_frame_bytes": 64,
+      "fields": [
+        {"offset": 0,  "size": 1,  "name": "merged_state",            "type": "uint8_bitfield", "ref": "merged_state"},
+        {"offset": 1,  "size": 4,  "name": "dose_rate_usv_h",         "type": "float32_le"},
+        {"offset": 5,  "size": 4,  "name": "count_rate_cps",          "type": "float32_le"},
+        {"offset": 9,  "size": 4,  "name": "background_dose_rate_usv_h", "type": "float32_le"},
+        {"offset": 13, "size": 4,  "name": "background_count_rate_cps","type": "float32_le"},
+        {"offset": 17, "size": 4,  "name": "level",                   "type": "float32_le", "range": "0-9"},
+        {"offset": 21, "size": 4,  "name": "dose_time",               "type": "time_t"},
+        {"offset": 25, "size": 4,  "name": "dose_date",               "type": "date_t"},
+        {"offset": 29, "size": 4,  "name": "dose_usv",                "type": "float32_le"},
+        {"offset": 33, "size": 4,  "name": "dose_duration_s",         "type": "float32_le"},
+        {"offset": 37, "size": 1,  "name": "battery_state",           "type": "uint8_bitfield", "ref": "battery_state"},
+        {"offset": 38, "size": 1,  "name": "battery_level_percent",   "type": "uint8", "note": "Ignore if USB connected"},
+        {"offset": 39, "size": 4,  "name": "system_state",            "type": "uint32_le_bitfield", "ref": "system_state"},
+        {"offset": 43, "size": 4,  "name": "measurement_id",          "type": "uint32_le", "note": "Incremented every 250ms"}
+      ],
+      "struct_c": "typedef struct { Merged_Measurement_t Merged; Dose_Data_t Dose; Battery_Data_t Battery; SystemState_t SystemState; uint32_t Id; } Device_Data_t;",
+      "example_frame": {
+        "full_hex": "23 21 41 63 63 75 52 61 64 21 23 33 00 01 00 81 D7 86 4E 3D E8 0A E5 40 13 39 13 3D 4F 69 E8 40 FE D9 61 3E 2B CD 27 00 C1 42 7E 00 F6 BE FA 3D 00 34 12 46 A4 60 00 00 00 40 32 92 00 00 4F A9",
+        "decoded": {
+          "merged_state": "0x81 = initialized, origin=low_range(1)",
+          "dose_rate_usv_h": 0.050421562,
+          "count_rate_cps": 7.15758133,
+          "background_dose_rate_usv_h": 0.0359431021,
+          "background_count_rate_cps": 7.262855,
+          "level": 0.220558137,
+          "dose_time": "11:41:57.019",
+          "dose_date": "2020-02-24 (Monday)",
+          "dose_usv": 0.122434542,
+          "dose_duration_s": 9357.0,
+          "battery_state": "0xA4 = USB connected, initialized",
+          "battery_level_percent": "96 (but IGNORE because USB connected)",
+          "system_state": "0x40000000 = initialized only",
+          "measurement_id": 37426,
+          "crc": "0xA94F"
+        }
+      }
+    }
+  },
+
+  "bitfield_definitions": {
+    "merged_state": {
+      "size_bytes": 1,
+      "fields": [
+        {"name": "origin",              "bits": "0-1", "type": "enum", "values": {"0": "UNKNOWN", "1": "LOW_RANGE (SED PRD/CsI)", "2": "HIGH_RANGE (SED 15keV/Pin diode)", "3": "BOTH"}},
+        {"name": "prd_15kev_incoherence","bits": "2",  "type": "bool", "description": "Low and high range measurements inconsistent"},
+        {"name": "reserved_3",          "bits": "3",   "type": "reserved"},
+        {"name": "reserved_4",          "bits": "4",   "type": "reserved"},
+        {"name": "reserved_5",          "bits": "5",   "type": "reserved"},
+        {"name": "overload",            "bits": "6",   "type": "bool"},
+        {"name": "initialized",         "bits": "7",   "type": "bool"}
+      ]
+    },
+    "battery_state": {
+      "size_bytes": 1,
+      "fields": [
+        {"name": "level_too_low",  "bits": "0", "type": "bool"},
+        {"name": "level_critical", "bits": "1", "type": "bool"},
+        {"name": "usb_connected",  "bits": "2", "type": "bool", "note": "When true, battery level_percent is unreliable"},
+        {"name": "reserved_3",    "bits": "3", "type": "reserved"},
+        {"name": "reserved_4",    "bits": "4", "type": "reserved"},
+        {"name": "reserved_5",    "bits": "5", "type": "reserved"},
+        {"name": "failure",        "bits": "6", "type": "bool"},
+        {"name": "initialized",    "bits": "7", "type": "bool"}
+      ]
+    },
+    "system_state": {
+      "size_bytes": 4,
+      "fields": [
+        {"bit": 0,  "name": "counting_fault",     "description": "Counting fault on SED PRD and/or SED 15 keV"},
+        {"bit": 1,  "name": "temp_sensor_fault",   "description": "Temperature sensor failure"},
+        {"bit": 2,  "name": "temp_out_of_range",   "description": "Temperature out of working range"},
+        {"bit": 3,  "name": "check_datetime",      "description": "Date/Time not up to date"},
+        {"bit": 4,  "name": "accumulation_enabled", "description": "Spectrum accumulation activated"},
+        {"bit": 5,  "name": "accumulation_in_progress", "description": "Spectra accumulation in progress"},
+        {"bit": 6,  "name": "acknowledged",        "description": "Device in acknowledged state"},
+        {"bit": 7,  "name": "low_alarm",           "description": "Low alarm activated", "category": "alarm"},
+        {"bit": 8,  "name": "high_alarm",          "description": "High alarm activated", "category": "alarm"},
+        {"bit": 9,  "name": "danger",              "description": "Danger alarm activated", "category": "alarm"},
+        {"bit": 10, "name": "dose_alarm",          "description": "Dose alarm activated", "category": "alarm"},
+        {"bit": 11, "name": "dose_danger",         "description": "Dose danger activated", "category": "alarm"},
+        {"bit": 12, "name": "low_power",           "description": "Low power mode active"},
+        {"bit": 13, "name": "search_mode",         "description": "Search mode active"},
+        {"bit": 14, "name": "not_used",            "description": "Reserved"},
+        {"bit": 15, "name": "calibration_expired", "description": "Calibration needs checking"},
+        {"bit": 16, "name": "vbs",                 "description": "VBS triggered (background variation)"},
+        {"bit": 17, "name": "magnetometer_fault",  "description": "Magnetometer failure", "category": "fault"},
+        {"bit": 18, "name": "acc_gyrometer_fault", "description": "Accelerometer/Gyroscope failure", "category": "fault"},
+        {"bit": 19, "name": "e2p_fault",           "description": "E2PROM memory failure", "category": "fault"},
+        {"bit": 20, "name": "flash_fault",         "description": "Flash memory failure", "category": "fault"},
+        {"bit": 21, "name": "audio_fault",         "description": "Audio failure", "category": "fault"},
+        {"bit": 22, "name": "ble_fault",           "description": "Bluetooth failure", "category": "fault"},
+        {"bit": 23, "name": "discreet",            "description": "Discreet mode activated"},
+        {"bit": 24, "name": "alarm_thresholds_not_consistent", "description": "Thresholds violate rule: low < high < danger < saturation"},
+        {"bit": 25, "name": "reserved_25"},
+        {"bit": 26, "name": "reserved_26"},
+        {"bit": 27, "name": "reserved_27"},
+        {"bit": 28, "name": "reserved_28"},
+        {"bit": 29, "name": "reserved_29"},
+        {"bit": 30, "name": "initialized",         "description": "Initialization sequence complete"},
+        {"bit": 31, "name": "remote_ctrl",         "description": "Remote control activated"}
+      ]
+    }
+  },
+
+  "timezone_index": {
+    "0":  "UTC-12:00", "1":  "UTC-11:00", "2":  "UTC-10:00 (Honolulu)",
+    "3":  "UTC-09:30 (Marquesas)", "4":  "UTC-09:00 (Anchorage)",
+    "5":  "UTC-08:00 (Los Angeles)", "6":  "UTC-07:00 (Phoenix)",
+    "7":  "UTC-06:00 (Chicago)", "8":  "UTC-05:00 (New York)",
+    "9":  "UTC-04:00 (Caracas)", "10": "UTC-03:30 (St. John's)",
+    "11": "UTC-03:00 (Buenos Aires)", "12": "UTC-02:00 (Fernando de Noronha)",
+    "13": "UTC-01:00 (Cape Verde)", "14": "UTC+00:00 (London)",
+    "15": "UTC+01:00 (Paris)", "16": "UTC+02:00 (Athens)",
+    "17": "UTC+03:00 (Moscow)", "18": "UTC+03:30 (Tehran)",
+    "19": "UTC+04:00 (Dubai)", "20": "UTC+04:30 (Kabul)",
+    "21": "UTC+05:00 (Karachi)", "22": "UTC+05:30 (Delhi)",
+    "23": "UTC+05:45 (Kathmandu)", "24": "UTC+06:00 (Dhaka)",
+    "25": "UTC+06:30 (Yangon)", "26": "UTC+07:00 (Bangkok)",
+    "27": "UTC+08:00 (Beijing)", "28": "UTC+08:45 (Eucla)",
+    "29": "UTC+09:00 (Tokyo)", "30": "UTC+09:30 (Adelaide)",
+    "31": "UTC+10:00 (Sydney)", "32": "UTC+10:30 (NSW)",
+    "33": "UTC+11:00 (Noumea)", "34": "UTC+12:00 (Auckland)",
+    "35": "UTC+12:45 (Chatham)", "36": "UTC+13:00 (Apia)",
+    "37": "UTC+14:00 (Kiribati)"
+  }
+}

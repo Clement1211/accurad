@@ -1,0 +1,119 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "accurad"
+version = "0.1.0"
+description = "Python API for the Mirion Technologies AccuRad PRD radiation detector"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "Clement", email = "clement@example.com" },
+]
+keywords = ["radiation", "detector", "accurad", "mirion", "dosimetry", "geiger", "prd"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: System :: Hardware :: Hardware Drivers",
+    "Typing :: Typed",
+]
+dependencies = [
+    "pyserial>=3.5",
+]
+
+[project.optional-dependencies]
+bluetooth = [
+    "bleak>=0.21.0",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-mock>=3.10",
+    "pytest-asyncio>=0.21",
+    "mypy>=1.0",
+    "ruff>=0.4.0",
+]
+docs = [
+    "mkdocs>=1.5",
+    "mkdocstrings[python]>=0.24",
+    "mkdocs-material>=9.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/clementMusic/accurad"
+Documentation = "https://github.com/clementMusic/accurad#readme"
+Repository = "https://github.com/clementMusic/accurad"
+Issues = "https://github.com/clementMusic/accurad/issues"
+
+# ---------- Ruff ----------
+[tool.ruff]
+target-version = "py310"
+line-length = 99
+src = ["accurad", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "TCH",  # flake8-type-checking
+    "RUF",  # ruff-specific
+    "D",    # pydocstyle
+    "ANN",  # flake8-annotations
+]
+ignore = [
+    "D100",   # Missing docstring in public module (we add these progressively)
+    "D104",   # Missing docstring in public package
+    "D203",   # 1 blank line before class docstring (conflicts with D211)
+    "D213",   # Multi-line docstring summary on second line (conflicts with D212)
+    "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["D", "ANN", "S101"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["accurad"]
+
+# ---------- Mypy ----------
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = ["serial.*", "bleak.*"]
+ignore_missing_imports = true
+
+# ---------- Pytest ----------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "hardware: tests requiring a physical AccuRad PRD device (deselect with '-m \"not hardware\"')",
+    "bluetooth: tests requiring Bluetooth connectivity",
+]
+filterwarnings = [
+    "error",
+]
