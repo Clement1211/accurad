@@ -27,10 +27,10 @@ Read-only API — retrieves device information, real-time radiation measurements
 
 ```bash
 # USB only
-pip install accurad
+pip install git+https://github.com/Clement1211/accurad.git
 
 # With Bluetooth support
-pip install accurad[bluetooth]
+pip install "accurad[bluetooth] @ git+https://github.com/Clement1211/accurad.git"
 ```
 
 ## Quick Start
