@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "accurad"
-version = "0.1.0"
+version = "0.2.0"
 description = "Python API for the Mirion Technologies AccuRad PRD radiation detector"
 readme = "README.md"
 license = "MIT"
@@ -14,7 +14,7 @@ authors = [
 ]
 keywords = ["radiation", "detector", "accurad", "mirion", "dosimetry", "geiger", "prd"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",

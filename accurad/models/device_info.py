@@ -5,8 +5,8 @@ Reference: protocol_reference.json -> payloads -> id_0_device_info
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from dataclasses import asdict, dataclass
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -36,3 +36,9 @@ class DeviceInfo:
     device_datetime: datetime
     timezone_index: int
     timezone_label: str
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to a JSON-serializable dictionary."""
+        d = asdict(self)
+        d["device_datetime"] = self.device_datetime.isoformat()
+        return d

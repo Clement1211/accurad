@@ -5,6 +5,7 @@ Uses pyserial to communicate over the USB Virtual COM Port.
 
 from __future__ import annotations
 
+import logging
 import struct
 
 import serial
@@ -18,6 +19,8 @@ from accurad._constants import (
 )
 from accurad.connection.base import AccuRadConnection
 from accurad.exceptions import ReadTimeoutError, USBConnectionError
+
+logger = logging.getLogger("accurad.connection.serial")
 
 
 class SerialConnection(AccuRadConnection):
@@ -44,6 +47,7 @@ class SerialConnection(AccuRadConnection):
 
     def connect(self) -> None:
         """Open the serial port and flush buffers."""
+        logger.info("Opening serial port %s (921600 baud)", self._port)
         try:
             self._serial = serial.Serial(
                 port=self._port,
@@ -54,7 +58,9 @@ class SerialConnection(AccuRadConnection):
             # Flush any stale data in buffers
             self._serial.reset_input_buffer()
             self._serial.reset_output_buffer()
+            logger.info("Serial port %s opened successfully", self._port)
         except serial.SerialException as exc:
+            logger.error("Failed to open serial port '%s': %s", self._port, exc)
             raise USBConnectionError(
                 f"Failed to open serial port '{self._port}': {exc}"
             ) from exc
@@ -62,16 +68,19 @@ class SerialConnection(AccuRadConnection):
     def disconnect(self) -> None:
         """Close the serial port."""
         if self._serial is not None and self._serial.is_open:
+            logger.info("Closing serial port %s", self._port)
             self._serial.close()
         self._serial = None
 
     def send(self, data: bytes) -> None:
         """Send bytes over the serial port."""
         ser = self._ensure_connected()
+        logger.debug("TX %d bytes: %s", len(data), data.hex())
         try:
             ser.write(data)
             ser.flush()
         except serial.SerialException as exc:
+            logger.error("Serial write failed: %s", exc)
             raise USBConnectionError(f"Write failed: {exc}") from exc
 
     def receive(self, timeout: float | None = None) -> bytes:
@@ -122,7 +131,9 @@ class SerialConnection(AccuRadConnection):
                 )
 
             # Reconstruct the full frame
-            return bytes(START_MARKER + len_bytes + remaining)
+            full_frame = bytes(START_MARKER + len_bytes + remaining)
+            logger.debug("RX %d bytes: %s", len(full_frame), full_frame.hex())
+            return full_frame
 
         finally:
             if timeout is not None:

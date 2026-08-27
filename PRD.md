@@ -1,63 +1,63 @@
 # Product Requirements Document (PRD)
-## API AccuRad PRD — Bibliothèque Open-Source de Communication
+## AccuRad PRD API — Open-Source Communication Library
 
-| Champ | Valeur |
+| Field | Value |
 |---|---|
 | **Version** | 1.2 |
 | **Date** | 2026-03-19 |
-| **Statut** | Validated (hardware-tested) |
-| **Appareil cible** | AccuRad PRD (Mirion Technologies) |
-| **Document de référence** | DOC012721EN-E, Section 10.1 — Communication Protocol |
+| **Status** | Validated (hardware-tested) |
+| **Target Device** | AccuRad PRD (Mirion Technologies) |
+| **Reference Document** | DOC012721EN-E, Section 10.1 — Communication Protocol |
 
 ---
 
-## 1. Executive Summary & Objectifs
+## 1. Executive Summary & Objectives
 
 ### 1.1 Vision
 
-Créer une bibliothèque Python open-source, propre et bien documentée, permettant à tout développeur de communiquer avec le détecteur de radiation personnel AccuRad PRD de Mirion Technologies via USB ou Bluetooth. Aucune API ouverte n'existe actuellement pour ce matériel ; cette bibliothèque comblera ce manque.
+Create a clean, well-documented, open-source Python library enabling any developer to communicate with the Mirion Technologies AccuRad PRD personal radiation detector via USB or Bluetooth. No open API currently exists for this hardware; this library fills that gap.
 
-### 1.2 Objectifs stratégiques
+### 1.2 Strategic Objectives
 
-1. **Démocratiser l'accès aux données** — Permettre aux chercheurs, techniciens en radioprotection et développeurs d'intégrer les mesures de l'AccuRad PRD dans leurs propres outils (dashboards, systèmes SCADA, logging, alertes personnalisées).
-2. **Fiabilité industrielle** — Implémenter un parsing strict du protocole binaire avec validation CRC16, gestion des timeouts et interprétation complète des états système.
-3. **Open-source & communauté** — Publier sous licence MIT sur GitHub/PyPI avec une documentation exemplaire pour encourager les contributions.
+1. **Democratize data access** — Enable researchers, radiation protection technicians, and developers to integrate AccuRad PRD measurements into their own tools (dashboards, SCADA systems, logging, custom alerts).
+2. **Industrial reliability** — Implement strict binary protocol parsing with CRC16 validation, timeout management, and complete system state interpretation.
+3. **Open-source & community** — Publish under MIT license on GitHub/PyPI with exemplary documentation to encourage contributions.
 
-### 1.3 Cas d'usage cibles
+### 1.3 Target Use Cases
 
-| Cas d'usage | Description |
+| Use Case | Description |
 |---|---|
-| **Monitoring en temps réel** | Lecture continue des mesures (dose rate, count rate, dose cumulée) avec polling configurable |
-| **Logging & archivage** | Enregistrement horodaté des données dans un fichier CSV/JSON/base de données |
-| **Intégration système** | Alimentation d'un dashboard web, d'un système d'alerte ou d'une plateforme IoT |
-| **Scripting & automatisation** | Scripts de vérification d'état de l'appareil (batterie, calibration, erreurs matérielles) |
-| **Recherche & analyse** | Collecte de données brutes pour analyse scientifique post-mission |
+| **Real-time monitoring** | Continuous reading of measurements (dose rate, count rate, accumulated dose) with configurable polling |
+| **Logging & archival** | Timestamped data recording to CSV/JSON/database |
+| **System integration** | Feed a web dashboard, alert system, or IoT platform |
+| **Scripting & automation** | Device health check scripts (battery, calibration, hardware faults) |
+| **Research & analysis** | Raw data collection for post-mission scientific analysis |
 
 ---
 
-## 2. Périmètre (Scope) & Fonctionnalités Clés
+## 2. Scope & Key Features
 
 ### 2.1 In Scope (v1.0)
 
-#### 2.1.1 Couche transport — Connexion à l'appareil
+#### 2.1.1 Transport Layer — Device Connection
 
-| Méthode | Signature | Description |
+| Method | Signature | Description |
 |---|---|---|
-| `connect_usb()` | `connect_usb(port: str, baudrate: int = 921600) -> AccuRadConnection` | Connexion via USB Virtual COM Port |
-| `connect_bluetooth()` | `connect_bluetooth(address: str, timeout: float = 5.0) -> AccuRadConnection` | Connexion via Bluetooth BLE (UART Service) |
-| `disconnect()` | `disconnect() -> None` | Fermeture propre de la connexion |
-| `is_connected` | `@property -> bool` | État de la connexion |
+| `connect_usb()` | `connect_usb(port: str, baudrate: int = 921600) -> AccuRadConnection` | Connect via USB Virtual COM Port |
+| `connect_bluetooth()` | `connect_bluetooth(address: str, timeout: float = 15.0) -> AccuRadConnection` | Connect via Bluetooth BLE (UART Service) |
+| `disconnect()` | `disconnect() -> None` | Clean connection teardown |
+| `is_connected` | `@property -> bool` | Connection state |
 
-#### 2.1.2 Couche protocole — Requêtes et réponses
+#### 2.1.2 Protocol Layer — Requests and Responses
 
-| Méthode | Signature | Description |
+| Method | Signature | Description |
 |---|---|---|
-| `get_device_info()` | `get_device_info() -> DeviceInfo` | Envoie la séquence ID=0 et parse la réponse complète |
-| `get_measurements()` | `get_measurements() -> DeviceData` | Envoie la séquence ID=1 et parse la réponse complète |
+| `get_device_info()` | `get_device_info() -> DeviceInfo` | Send ID=0 sequence and parse the full response |
+| `get_measurements()` | `get_measurements() -> DeviceData` | Send ID=1 sequence and parse the full response |
 
-#### 2.1.3 Couche données — Modèles de données typés
+#### 2.1.3 Data Layer — Typed Data Models
 
-Les structures retournées par l'API sont des **dataclasses Python immutables** mappant exactement les structures C du protocole :
+Structures returned by the API are **immutable Python dataclasses** mapping exactly to the protocol's C structures:
 
 ```
 DeviceInfo
@@ -67,7 +67,7 @@ DeviceInfo
 ├── firmware_number: int       # uint32
 ├── firmware_version: str      # "AA.BB.CC.DD"
 ├── datetime: datetime         # Python datetime from packed bitfields
-└── timezone: TimezoneInfo     # Index + label UTC
+└── timezone: TimezoneInfo     # Index + UTC label
 
 DeviceData
 ├── merged: MergedMeasurement
@@ -77,14 +77,14 @@ DeviceData
 │   │   ├── overload: bool
 │   │   └── initialized: bool
 │   ├── dose_rate_usv_h: float         # µSv/h
-│   ├── count_rate_cps: float          # coups par seconde
+│   ├── count_rate_cps: float          # counts per second
 │   ├── background_dose_rate_usv_h: float
 │   ├── background_count_rate_cps: float
-│   └── level: float                   # 0-9 (indicateur d'affichage)
+│   └── level: float                   # 0-9 (display indicator)
 ├── dose: DoseData
 │   ├── datetime: datetime
-│   ├── dose_usv: float                # µSv cumulé depuis startup/reset
-│   └── duration_s: float              # durée d'intégration en secondes
+│   ├── dose_usv: float                # accumulated µSv since startup/reset
+│   └── duration_s: float              # integration duration in seconds
 ├── battery: BatteryData
 │   ├── state: BatteryState
 │   │   ├── level_too_low: bool
@@ -92,134 +92,132 @@ DeviceData
 │   │   ├── usb_connected: bool
 │   │   ├── failure: bool
 │   │   └── initialized: bool
-│   └── level_percent: int | None       # 0-100, ou None si USB connecté (valeur non fiable)
-├── system_state: SystemState          # 32 flags individuels (voir §2.1.4)
-└── measurement_id: int                # Compteur incrémenté toutes les 250ms
+│   └── level_percent: int | None       # 0-100, or None if USB connected (unreliable)
+├── system_state: SystemState          # 32 individual flags (see §2.1.4)
+└── measurement_id: int                # Counter incremented every 250ms
 ```
 
-#### 2.1.4 Parsing des System States — Méthodes utilitaires
+#### 2.1.4 System State Parsing — Utility Methods
 
-Le `SystemState` (mot de 32 bits) expose chaque flag comme attribut booléen :
+`SystemState` (32-bit word) exposes each flag as a boolean attribute:
 
-| Attribut | Bit | Description |
+| Attribute | Bit | Description |
 |---|---|---|
-| `counting_fault` | 0 | Défaut de comptage SED PRD et/ou SED 15 keV |
-| `temp_sensor_fault` | 1 | Défaillance capteur de température |
-| `temp_out_of_range` | 2 | Température hors plage de fonctionnement |
-| `check_datetime` | 3 | Date/heure non à jour |
-| `accumulation_enabled` | 4 | Accumulation spectrale activée |
-| `accumulation_in_progress` | 5 | Accumulation en cours |
-| `acknowledged` | 6 | Appareil en état acquitté |
-| `low_alarm` | 7 | Alarme basse activée |
-| `high_alarm` | 8 | Alarme haute activée |
-| `danger` | 9 | Alarme danger activée |
-| `dose_alarm` | 10 | Alarme dose activée |
-| `dose_danger` | 11 | Alarme dose danger activée |
-| `low_power` | 12 | Mode basse consommation |
-| `search_mode` | 13 | Mode recherche actif |
-| `calibration_expired` | 15 | Calibration à vérifier |
-| `vbs` | 16 | VBS déclenché (variation de bruit de fond) |
-| `magnetometer_fault` | 17 | Magnétomètre en panne |
-| `acc_gyrometer_fault` | 18 | Accéléromètre/Gyroscope en panne |
-| `e2p_fault` | 19 | Mémoire E2PROM en défaut |
-| `flash_fault` | 20 | Mémoire Flash en défaut |
-| `audio_fault` | 21 | Défaillance audio |
-| `ble_fault` | 22 | Défaillance Bluetooth |
-| `discreet` | 23 | Mode discret activé |
-| `alarm_thresholds_not_consistent` | 24 | Seuils d'alarme incohérents |
-| `initialized` | 30 | Séquence d'initialisation terminée |
-| `remote_ctrl` | 31 | Contrôle à distance activé |
+| `counting_fault` | 0 | Counting fault on SED PRD and/or SED 15 keV |
+| `temp_sensor_fault` | 1 | Temperature sensor failure |
+| `temp_out_of_range` | 2 | Temperature out of operating range |
+| `check_datetime` | 3 | Date/time not up to date |
+| `accumulation_enabled` | 4 | Spectral accumulation enabled |
+| `accumulation_in_progress` | 5 | Accumulation in progress |
+| `acknowledged` | 6 | Device in acknowledged state |
+| `low_alarm` | 7 | Low alarm activated |
+| `high_alarm` | 8 | High alarm activated |
+| `danger` | 9 | Danger alarm activated |
+| `dose_alarm` | 10 | Dose alarm activated |
+| `dose_danger` | 11 | Dose danger alarm activated |
+| `low_power` | 12 | Low power mode |
+| `search_mode` | 13 | Search mode active |
+| `calibration_expired` | 15 | Calibration needs checking |
+| `vbs` | 16 | VBS triggered (background variation) |
+| `magnetometer_fault` | 17 | Magnetometer failure |
+| `acc_gyrometer_fault` | 18 | Accelerometer/Gyroscope failure |
+| `e2p_fault` | 19 | E2PROM memory fault |
+| `flash_fault` | 20 | Flash memory fault |
+| `audio_fault` | 21 | Audio failure |
+| `ble_fault` | 22 | Bluetooth failure |
+| `discreet` | 23 | Discreet mode enabled |
+| `alarm_thresholds_not_consistent` | 24 | Alarm thresholds inconsistent |
+| `initialized` | 30 | Initialization sequence complete |
+| `remote_ctrl` | 31 | Remote control enabled |
 
-Méthodes utilitaires :
+Utility methods:
 
-| Méthode | Description |
+| Method | Description |
 |---|---|
-| `has_alarms() -> bool` | `True` si au moins une alarme est active (bits 7-11) |
-| `has_faults() -> bool` | `True` si au moins un défaut matériel est détecté |
-| `get_active_alarms() -> list[str]` | Liste des noms des alarmes actives |
-| `get_active_faults() -> list[str]` | Liste des noms des défauts actifs |
-| `is_ready() -> bool` | `True` si initialized et aucun défaut critique |
+| `has_alarms() -> bool` | `True` if any radiological alarm is active (bits 7-11) |
+| `has_faults() -> bool` | `True` if any hardware fault is detected |
+| `get_active_alarms() -> list[str]` | List of active alarm names |
+| `get_active_faults() -> list[str]` | List of active fault names |
+| `is_ready() -> bool` | `True` if initialized and no critical faults |
 
-#### 2.1.5 Monitoring continu (haut niveau)
+#### 2.1.5 Continuous Monitoring (High Level)
 
-| Méthode | Signature | Description |
+| Method | Signature | Description |
 |---|---|---|
-| `stream_measurements()` | `stream_measurements(interval: float = 0.5, callback: Callable = None) -> Iterator[DeviceData]` | Générateur de mesures en continu avec gestion du keep-alive Bluetooth |
-| `start_logging()` | `start_logging(path: str, format: str = "csv", interval: float = 1.0) -> None` | Démarre l'enregistrement des données dans un fichier |
-| `stop_logging()` | `stop_logging() -> None` | Arrête l'enregistrement |
+| `stream_measurements()` | `stream_measurements(interval=0.5, callback=None, on_error=None, max_errors=10) -> Iterator[DeviceData]` | Continuous measurement generator with BLE keep-alive and error handling |
+| `start_logging()` | `start_logging(path, fmt="csv", interval=1.0, on_error=None, max_errors=10) -> Logger` | Start background file logging |
+| `stop_logging()` | `stop_logging() -> None` | Stop logging |
 
 ### 2.2 Out of Scope (v1.0)
 
-- **Écriture de configuration** sur l'appareil (le protocole ne documente intentionnellement pas les séquences de configuration pour éviter les corruptions — cf. §10.1.2)
-- **Interface graphique (GUI)**
-- **Support des fichiers .n42 / .xlsx** (export fait par l'AccuRad App, pas par cette API)
-- **Gestion multi-appareils simultanés** (possible mais non garanti en v1.0)
+- **Configuration writes** to the device (the protocol intentionally does not document configuration sequences to prevent corruption — see §10.1.2)
+- **Graphical user interface (GUI)**
+- **Support for .n42 / .xlsx files** (exported by AccuRad App, not by this API)
+- **Multi-device management** (possible but not guaranteed in v1.0)
 
 ---
 
-## 3. Architecture & Stack Technique Recommandée
+## 3. Architecture & Recommended Tech Stack
 
-### 3.1 Langage : Python 3.10+
+### 3.1 Language: Python 3.10+
 
-**Justification :**
-- Écosystème riche pour la communication série et Bluetooth
-- Adoption massive dans la communauté scientifique et radioprotection
-- `struct` natif pour le parsing binaire little-endian
-- Type hints et dataclasses pour une API propre et auto-documentée
-- Facilité de publication sur PyPI
+**Rationale:**
+- Rich ecosystem for serial and Bluetooth communication
+- Massive adoption in the scientific and radiation protection community
+- Native `struct` for little-endian binary parsing
+- Type hints and dataclasses for a clean, self-documenting API
+- Easy publication to PyPI
 
-### 3.2 Bibliothèques recommandées
+### 3.2 Recommended Libraries
 
-| Dépendance | Version min. | Rôle |
+| Dependency | Min. Version | Role |
 |---|---|---|
-| `pyserial` | 3.5 | Communication USB Virtual COM Port |
-| `bleak` | 0.21+ | Communication Bluetooth Low Energy (BLE) cross-platform |
-| `struct` (stdlib) | — | Décodage des trames binaires (little-endian floats, uint32, bitfields) |
-| `dataclasses` (stdlib) | — | Modèles de données immutables |
-| `enum` (stdlib) | — | Enums pour MeasurementOrigin, TimezoneIndex, etc. |
-| `logging` (stdlib) | — | Logging structuré configurable |
+| `pyserial` | 3.5 | USB Virtual COM Port communication |
+| `bleak` | 0.21+ | Cross-platform Bluetooth Low Energy (BLE) communication |
+| `struct` (stdlib) | — | Binary frame decoding (little-endian floats, uint32, bitfields) |
+| `dataclasses` (stdlib) | — | Immutable data models |
+| `enum` (stdlib) | — | Enums for MeasurementOrigin, TimezoneIndex, etc. |
+| `logging` (stdlib) | — | Configurable structured logging |
 
-**Dépendances de développement :**
+**Development dependencies:**
 
-| Outil | Rôle |
+| Tool | Role |
 |---|---|
-| `pytest` | Tests unitaires et d'intégration |
-| `pytest-mock` | Mocking des ports série/BLE pour tests sans matériel |
-| `ruff` | Linting et formatting |
-| `mypy` | Vérification de types statique |
-| `mkdocs` + `mkdocstrings` | Documentation auto-générée |
-| `hatch` / `setuptools` | Build et packaging PyPI |
+| `pytest` | Unit and integration tests |
+| `pytest-mock` | Mocking serial/BLE ports for hardware-free tests |
+| `ruff` | Linting and formatting |
+| `mypy` | Static type checking |
+| `mkdocs` + `mkdocstrings` | Auto-generated documentation |
+| `hatch` / `setuptools` | Build and PyPI packaging |
 
-### 3.3 Architecture des modules
+### 3.3 Module Architecture
 
 ```
 accurad/
-├── __init__.py              # Exports publics : connect_usb, connect_bluetooth, AccuRad
+├── __init__.py              # Public exports: AccuRad, AccuRadConfig, stream_measurements
+├── client.py                # AccuRad — main high-level class
+├── config.py                # AccuRadConfig centralized configuration
+├── streaming.py             # stream_measurements(), continuous logging
+├── exceptions.py            # Custom exception hierarchy
+├── _constants.py            # Constants: START_MARKER, POLYNOM16, BLE UUIDs, timeouts
 ├── connection/
-│   ├── __init__.py
-│   ├── base.py              # AccuRadConnection (classe abstraite)
+│   ├── base.py              # AccuRadConnection (abstract class)
 │   ├── serial.py            # SerialConnection (USB COM Port via pyserial)
 │   └── bluetooth.py         # BluetoothConnection (BLE via bleak)
 ├── protocol/
-│   ├── __init__.py
-│   ├── frame.py             # Parsing de trame : start marker, LEN, ID, payload, CRC
-│   ├── crc.py               # Implémentation CRC16 (polynôme 0xAC5E)
-│   ├── requests.py          # Séquences de requêtes brutes (ID=0, ID=1)
-│   └── parsers.py           # Décodage des payloads en dataclasses
-├── models/
-│   ├── __init__.py
-│   ├── device_info.py       # DeviceInfo dataclass
-│   ├── device_data.py       # DeviceData, MergedMeasurement, DoseData, BatteryData
-│   ├── system_state.py      # SystemState avec méthodes utilitaires
-│   ├── datetime.py          # Parsing des bitfields Date_t et Time_t
-│   └── enums.py             # MeasurementOrigin, TimezoneIndex, etc.
-├── client.py                # AccuRad — classe principale haut niveau
-├── streaming.py             # stream_measurements(), logging continu
-├── exceptions.py            # Hiérarchie d'exceptions personnalisées
-└── _constants.py            # Constantes : START_MARKER, POLYNOM16, UUIDs BLE, timeouts
+│   ├── frame.py             # Frame parsing: start marker, LEN, ID, payload, CRC
+│   ├── crc.py               # CRC16 implementation (polynomial 0xAC5E)
+│   ├── requests.py          # Raw request byte sequences (ID=0, ID=1)
+│   └── parsers.py           # Payload decoding to dataclasses
+└── models/
+    ├── device_info.py       # DeviceInfo dataclass
+    ├── device_data.py       # DeviceData, MergedMeasurement, DoseData, BatteryData
+    ├── system_state.py      # SystemState with utility methods
+    ├── datetime.py          # Date_t and Time_t bitfield parsing
+    └── enums.py             # MeasurementOrigin, TimezoneIndex, etc.
 ```
 
-### 3.4 Diagramme de flux d'une requête
+### 3.4 Request Flow Diagram
 
 ```
 Application
@@ -227,34 +225,37 @@ Application
     ▼
 AccuRad.get_measurements()
     │
-    ├─► requests.py : bytes DEVICE_DATA_REQUEST = b'\x7E\x04\x00\x11\xA7\x1E\x43\xE7'
+    ├─► _constants.py: DEVICE_DATA_REQUEST = b'\x7E\x04\x00\x11\xA7\x1E\x43\xE7'
+    │
+    ├─► _request() acquires thread lock, sends request, receives response (with retry)
     │
     ├─► connection.send(DEVICE_DATA_REQUEST)
     │
     ├─► connection.receive() → raw bytes
     │
-    ├─► frame.py : validate_frame(raw)
-    │   ├─ Vérifier start marker "#!AccuRad!#"
-    │   ├─ Extraire LEN (2 bytes LE) — LEN inclut ID + Payload + CRC
-    │   ├─ Extraire ID (2 bytes LE)
-    │   ├─ Extraire payload (LEN - 4 bytes : -2 ID, -2 CRC)
-    │   ├─ Extraire CRC reçu (2 derniers bytes LE)
-    │   └─ crc.py : crc16(payload) == CRC reçu ?
+    ├─► frame.py: parse_frame(raw)
+    │   ├─ Verify start marker "#!AccuRad!#"
+    │   ├─ Extract LEN (2 bytes LE) — LEN includes ID + Payload + CRC
+    │   ├─ Extract ID (2 bytes LE)
+    │   ├─ Extract payload (LEN - 4 bytes: -2 ID, -2 CRC)
+    │   ├─ Extract received CRC (last 2 bytes LE)
+    │   ├─ crc.py: crc16(ID + payload) == received CRC?
+    │   └─ Validate payload size against expected for frame ID
     │
-    ├─► parsers.py : parse_device_data(payload) → DeviceData
+    ├─► parsers.py: parse_device_data(payload) → DeviceData
     │
     └─► return DeviceData
 ```
 
 ---
 
-## 4. Sécurité, Fiabilité & Gestion des Erreurs
+## 4. Security, Reliability & Error Handling
 
-### 4.1 Validation de l'intégrité des données — CRC16
+### 4.1 Data Integrity Validation — CRC16
 
-L'intégrité de chaque trame est vérifiée via un CRC16 avec polynôme custom `0xAC5E`.
+Every frame's integrity is verified via CRC16 with custom polynomial `0xAC5E`.
 
-**Algorithme (traduit fidèlement du C de la documentation) :**
+**Algorithm (faithfully translated from the documentation's C source):**
 
 ```python
 POLYNOM16 = 0xAC5E
@@ -273,135 +274,134 @@ def crc16(data: bytes) -> int:
     return crc
 ```
 
-**Règles :**
-- Le CRC est calculé sur **ID + payload** (= tout entre LEN et CRC dans la trame, noté « XXXXX » dans le manuel)
-- Si le CRC calculé ne correspond pas au CRC reçu → lever `CRCMismatchError`
-- Aucune donnée n'est jamais retournée à l'utilisateur si le CRC échoue
-- **Note :** Le manuel indique « CRC computed on payload » ce qui est ambigu. L'analyse des trames d'exemple prouve que le CRC couvre ID + payload (vérifié : CRC(ID+Payload) = 0x5B02 pour device info). La valeur CRC de device data dans le manuel (0xA94F / 0x5B02) est une erreur de documentation ; la valeur correcte est 0x599E.
+**Rules:**
+- CRC is computed on **ID + payload** (= everything between LEN and CRC in the frame, referred to as "XXXXX" in the manual)
+- If computed CRC doesn't match received CRC → raise `CRCMismatchError`
+- No data is ever returned to the user if the CRC fails
+- **Note:** The manual states "CRC computed on payload" which is ambiguous. Analysis of example frames proves the CRC covers ID + payload (verified: CRC(ID+Payload) = 0x5B02 for device info). The device data CRC value in the manual (0xA94F / 0x5B02) is a documentation error; the correct value is 0x599E.
 
-### 4.2 Gestion des timeouts
+### 4.2 Timeout Management
 
-#### 4.2.1 Timeouts Bluetooth (spécifications du manuel §10.1.3.3.3)
+#### 4.2.1 Bluetooth Timeouts (manual specifications §10.1.3.3.3)
 
-| Timeout | Valeur | Comportement |
+| Timeout | Value | Behavior |
 |---|---|---|
-| **Post-connexion** | 1 seconde | Après établissement de la connexion BLE, attendre 1s avant d'envoyer toute requête, sinon la communication peut échouer |
-| **Keep-alive** | 2.5 secondes max | L'AccuRad doit recevoir un message valide au moins toutes les 2.5s, sinon il passe en mode discoverable (déconnexion) |
-| **Discoverable** | 60 secondes | Après perte de connexion ou scan NFC, l'appareil est visible pendant 60s puis coupe le Bluetooth (sauf en mode "opened") |
+| **Post-connect** | 1 second | After BLE connection, wait 1s before any request, otherwise communication may fail |
+| **Keep-alive** | 2.5 seconds max | AccuRad must receive a valid message at least every 2.5s, otherwise it enters discoverable mode (disconnects) |
+| **Discoverable** | 60 seconds | After connection loss or NFC scan, device is visible for 60s then turns off Bluetooth (except in "opened" mode) |
 
-**Implémentation :**
-- En mode `stream_measurements()`, un heartbeat automatique (requête ID=1) est envoyé toutes les 2 secondes maximum pour maintenir la connexion BLE
-- Un timer interne avertit si le délai entre deux communications approche 2.5s
-- Après connexion BLE, un `await asyncio.sleep(1.0)` est inséré automatiquement
+**Implementation:**
+- In `stream_measurements()` mode, an automatic heartbeat (ID=1 request) is sent every 2 seconds maximum to maintain the BLE connection
+- A background timer thread sends keep-alive if no request has been sent within the interval
+- After BLE connect, `await asyncio.sleep(1.0)` is inserted automatically
 
-#### 4.2.2 Timeouts généraux
+#### 4.2.2 General Timeouts
 
-| Paramètre | Valeur par défaut | Configurable |
+| Parameter | Default | Configurable |
 |---|---|---|
-| `read_timeout` | 3.0s | Oui |
-| `write_timeout` | 1.0s | Oui |
-| `connect_timeout` | 15.0s (BLE) / 2.0s (USB) | Oui |
+| `read_timeout` | 3.0s | Yes |
+| `write_timeout` | 1.0s | Yes |
+| `connect_timeout` | 15.0s (BLE) / 2.0s (USB) | Yes |
 
-### 4.3 Hiérarchie des exceptions
+### 4.3 Exception Hierarchy
 
 ```
-AccuRadError (base)
-├── ConnectionError
+AccuRadError (base) — recoverable, suggestion attributes
+├── ConnectionError          (recoverable=False)
 │   ├── USBConnectionError
 │   ├── BluetoothConnectionError
-│   └── ConnectionTimeoutError
-├── ProtocolError
-│   ├── InvalidFrameError        # Start marker absent ou trame malformée
-│   ├── CRCMismatchError         # CRC calculé ≠ CRC reçu
-│   ├── UnexpectedFrameIDError   # ID de trame inattendu
-│   └── IncompleteFrameError     # Trame tronquée (LEN ne correspond pas)
+│   └── ConnectionTimeoutError  (recoverable=True)
+├── ProtocolError            (recoverable=False)
+│   ├── InvalidFrameError
+│   ├── CRCMismatchError     (recoverable=True)
+│   ├── UnexpectedFrameIDError
+│   ├── IncompleteFrameError (recoverable=True)
+│   └── PayloadSizeMismatchError
 ├── DeviceError
-│   ├── DeviceNotInitializedError  # Flag initialized = 0
-│   └── DeviceNotReadyError        # Défauts critiques détectés
-└── TimeoutError                   # Timeout de lecture/écriture
+│   ├── DeviceNotInitializedError (recoverable=True)
+│   └── DeviceNotReadyError
+└── ReadTimeoutError         (recoverable=True)
 ```
 
-### 4.4 Parsing des états matériels
+### 4.4 Hardware State Parsing
 
-L'API **ne masque aucune information** mais fournit des niveaux d'interprétation :
+The API **does not hide any information** but provides interpretation levels:
 
-**Niveau 1 — Brut :** Accès direct à chaque flag booléen via `system_state.low_alarm`, etc.
+**Level 1 — Raw:** Direct access to each boolean flag via `system_state.low_alarm`, etc.
 
-**Niveau 2 — Catégorisé :**
+**Level 2 — Categorized:**
 ```python
-# Alarmes radiologiques
+# Radiological alarms
 system_state.has_alarms()        # low_alarm OR high_alarm OR danger OR dose_alarm OR dose_danger
 system_state.get_active_alarms() # ["low_alarm", "danger"]
 
-# Défauts matériels
+# Hardware faults
 system_state.has_faults()        # counting_fault OR temp_sensor_fault OR ... OR ble_fault
 system_state.get_active_faults() # ["temp_out_of_range", "flash_fault"]
-
-# État batterie
-battery.is_critical()            # level_critical flag
-battery.is_usb_powered()         # usb_connected flag
 ```
 
-**Niveau 3 — Opérationnel :**
+**Level 3 — Operational:**
 ```python
 system_state.is_ready()          # initialized AND NOT has_faults()
 ```
 
-### 4.5 Robustesse de la connexion
+### 4.5 Connection Robustness
 
-- **Reconnexion automatique** : Optionnelle, désactivée par défaut. Si activée, l'API tente une reconnexion après perte de connexion BLE (dans la fenêtre de 60s discoverable)
-- **Buffer flush** : À chaque nouvelle connexion, le buffer de réception est vidé pour éviter de parser des données résiduelles
-- **Validation du start marker** : Chaque réponse est scannée pour le pattern `#!AccuRad!#` (11 bytes : `0x23 0x21 0x41 0x63 0x63 0x75 0x52 0x61 0x64 0x21 0x23`). Les bytes précédant ce marker sont ignorés (synchronisation)
+- **Automatic reconnection**: Optional, disabled by default. When enabled, the API attempts reconnection after BLE connection loss (within the 60s discoverable window). Max 3 reconnection attempts.
+- **Buffer flush**: On every new connection, the receive buffer is flushed to avoid parsing residual data
+- **Start marker validation**: Every response is scanned for the `#!AccuRad!#` pattern (11 bytes: `0x23 0x21 0x41 0x63 0x63 0x75 0x52 0x61 0x64 0x21 0x23`). Bytes before this marker are discarded (synchronization)
+- **Configurable retries**: Automatic retry on recoverable errors (timeout, CRC mismatch). Non-recoverable errors raise immediately.
+- **Thread safety**: All requests are serialized via `threading.Lock`
 
 ---
 
-## 5. Dépendances et Prérequis Système
+## 5. Dependencies and System Requirements
 
-### 5.1 Pour l'utilisateur de l'API
+### 5.1 For API Users
 
-| Prérequis | Détail |
+| Prerequisite | Detail |
 |---|---|
-| **Python** | 3.10 ou supérieur |
+| **Python** | 3.10 or higher |
 | **OS** | Windows 10+, Linux (Ubuntu 20.04+), macOS 12+ |
-| **Matériel** | AccuRad PRD avec firmware V1.1+ |
-| **USB** | Câble USB-C, driver COM port installé (automatique sur la plupart des OS) |
-| **Bluetooth** | Adaptateur BLE 4.0+ (intégré ou USB). L'AccuRad doit avoir le Bluetooth activé et être en mode discoverable ou "opened" |
+| **Hardware** | AccuRad PRD with firmware V1.1+ |
+| **USB** | USB-C cable, COM port driver installed (automatic on most OS) |
+| **Bluetooth** | BLE 4.0+ adapter (built-in or USB). AccuRad must have Bluetooth enabled and be in discoverable or "opened" mode |
 
 ### 5.2 Installation
 
 ```bash
-# Installation standard (USB uniquement)
+# Standard install (USB only)
 pip install accurad
 
-# Installation avec support Bluetooth
+# With Bluetooth support
 pip install accurad[bluetooth]
 
-# Installation développeur
+# Developer install
 pip install accurad[dev]
 ```
 
-### 5.3 Matrice de compatibilité Bluetooth
+### 5.3 Bluetooth Compatibility Matrix
 
-| OS | Backend BLE | Notes |
+| OS | BLE Backend | Notes |
 |---|---|---|
-| Windows 10+ | WinRT (via bleak) | Fonctionne nativement |
-| Linux | BlueZ 5.43+ (via bleak) | `sudo` peut être requis pour le scan BLE |
-| macOS 12+ | CoreBluetooth (via bleak) | Permissions Bluetooth à accorder dans Préférences Système |
+| Windows 10+ | WinRT (via bleak) | Works natively. Scan-first required (see N7). |
+| Linux | BlueZ 5.43+ (via bleak) | `sudo` may be required for BLE scanning |
+| macOS 12+ | CoreBluetooth (via bleak) | Bluetooth permissions required in System Preferences |
 
-### 5.4 Configuration minimale recommandée
+### 5.4 Minimal Example
 
 ```python
 from accurad import AccuRad
 
-# USB — le plus simple
-device = AccuRad.connect_usb("COM3")  # Windows
+# USB — simplest
+device = AccuRad.connect_usb("COM3")       # Windows
 device = AccuRad.connect_usb("/dev/ttyUSB0")  # Linux
 device = AccuRad.connect_usb("/dev/cu.usbmodem1234")  # macOS
 
 # Bluetooth
 device = AccuRad.connect_bluetooth("XX:XX:XX:XX:XX:XX")
 
-# Lecture
+# Read
 info = device.get_device_info()
 print(f"S/N: {info.serial_number}, FW: {info.firmware_version}")
 
@@ -410,120 +410,137 @@ print(f"Dose rate: {data.merged.dose_rate_usv_h:.4f} µSv/h")
 print(f"Battery: {data.battery.level_percent}%")
 
 if data.system_state.has_alarms():
-    print(f"ALARMES ACTIVES: {data.system_state.get_active_alarms()}")
+    print(f"ACTIVE ALARMS: {data.system_state.get_active_alarms()}")
 
 device.disconnect()
 ```
 
 ---
 
-## 6. Plan d'Implémentation (Milestones)
+## 6. Implementation Plan (Milestones)
 
-### Milestone 0 — Setup projet ✅
+### Milestone 0 — Project Setup ✅
 
-- [x] Repository Git, structure de dossiers, `pyproject.toml`, `ruff`, `mypy`, `pytest`
-- [x] CI GitHub Actions (multi-OS, multi-Python)
+- [x] Git repository, folder structure, `pyproject.toml`, `ruff`, `mypy`, `pytest`
+- [x] GitHub Actions CI (multi-OS, multi-Python)
 - [x] `README.md`, `.gitignore`, `CLAUDE.md`
 
-### Milestone 1 — Couche protocole brut ✅
+### Milestone 1 — Raw Protocol Layer ✅
 
 - [x] `_constants.py`, `crc.py`, `frame.py`, `models/datetime.py`, `models/enums.py`, `exceptions.py`
-- [x] CRC16 validé contre trames du manuel (0x5B02 device info, 0x599E device data)
-- [x] **Découverte :** CRC porte sur ID + Payload (pas juste payload). Erreur doc manuelle corrigée.
-- [x] 33 tests unitaires passent
+- [x] CRC16 validated against manual frames (0x5B02 device info, 0x599E device data)
+- [x] **Discovery:** CRC covers ID + Payload (not just payload). Manual documentation error corrected.
+- [x] 33 unit tests passing
 
-### Milestone 2 — Parsers de payload ✅
+### Milestone 2 — Payload Parsers ✅
 
-- [x] Tous les modèles : `DeviceInfo`, `DeviceData`, `MergedMeasurement`, `DoseData`, `BatteryData`, `SystemState`
-- [x] Parsers validés champ par champ contre les exemples du manuel
-- [x] Règle métier batterie USB implémentée
+- [x] All models: `DeviceInfo`, `DeviceData`, `MergedMeasurement`, `DoseData`, `BatteryData`, `SystemState`
+- [x] Parsers validated field-by-field against manual examples
+- [x] Battery USB business rule implemented
 
-### Milestone 3 — Couche transport USB ✅ (hardware-tested)
+### Milestone 3 — USB Transport ✅ (hardware-tested)
 
-- [x] `SerialConnection` avec synchronisation start marker, timeouts, buffer flush
-- [x] `AccuRad` client avec `connect_usb()`, `get_device_info()`, `get_measurements()`
-- [x] Testé sur AccuRad réel (S/N 003CEE, FW 1.6.0.0) — USB COM3
+- [x] `SerialConnection` with start marker synchronization, timeouts, buffer flush
+- [x] `AccuRad` client with `connect_usb()`, `get_device_info()`, `get_measurements()`
+- [x] Tested on real AccuRad (S/N 003CEE, FW 1.6.0.0) — USB COM3
 
-### Milestone 4 — Couche transport Bluetooth ✅ (hardware-tested)
+### Milestone 4 — Bluetooth Transport ✅ (hardware-tested)
 
-- [x] `BluetoothConnection` via bleak avec event loop threadé (fix Windows WinRT)
-- [x] Scan-first obligatoire (Windows ne trouve pas le device par adresse seule)
-- [x] Délai post-connexion 1s, keep-alive, timeout 15s (GATT discovery lent sur Windows)
-- [x] Testé sur AccuRad réel via BLE (FC:0F:E7:A7:D8:9F)
+- [x] `BluetoothConnection` via bleak with threaded event loop (Windows WinRT fix)
+- [x] Mandatory scan-first (Windows doesn't find device by address alone)
+- [x] Post-connect 1s delay, keep-alive, 15s timeout (GATT discovery slow on Windows)
+- [x] Tested on real AccuRad via BLE (FC:0F:E7:A7:D8:9F)
 
-### Milestone 5 — Streaming & haut niveau ✅ (hardware-tested)
+### Milestone 5 — Streaming & High Level ✅ (hardware-tested)
 
-- [x] `stream_measurements()` — générateur sync avec keep-alive naturel (chaque poll reset le timer BLE)
-- [x] `start_logging()` / `stop_logging()` — CSV et JSON lines, thread background
-- [x] Context manager sur `AccuRad` et `AccuRadConnection`
-- [x] Testé USB + BLE streaming, CSV logging vérifié
+- [x] `stream_measurements()` — sync generator with natural keep-alive
+- [x] `start_logging()` / `stop_logging()` — CSV and JSON lines, background thread
+- [x] Context manager on `AccuRad` and `AccuRadConnection`
+- [x] Tested USB + BLE streaming, CSV logging verified
 
-### Milestone 6 — Documentation & packaging (en cours)
+### Milestone 6 — Production Hardening ✅ (v0.2.0)
 
-- [x] Docstrings Google style sur toutes les méthodes publiques
-- [x] 4 exemples : `basic_usb.py`, `basic_bluetooth.py`, `continuous_monitoring.py`, `alarm_watcher.py`
-- [x] `demo/live_dashboard.py` — dashboard terminal temps réel
-- [ ] Documentation MkDocs
-- [ ] Publication PyPI
-- [ ] `CONTRIBUTING.md` et `LICENSE` (MIT)
+- [x] Structured logging (`logging` module) in all modules
+- [x] Error handling: `on_error` callback + `max_errors` on streaming
+- [x] Enriched exceptions with `recoverable` and `suggestion` attributes
+- [x] Configurable retry with `retries` and `retry_delay` parameters
+- [x] BLE auto-reconnect with `auto_reconnect=True`
+- [x] BLE automatic keep-alive background timer
+- [x] `AccuRadConfig` centralized configuration dataclass
+- [x] Device discovery: `discover_usb()`, `discover_bluetooth()`
+- [x] Per-request timeout override
+- [x] Thread safety with `threading.Lock`
+- [x] `ping()` health check, `wait_for_ready()` convenience method
+- [x] `to_dict()` JSON serialization on all models
+- [x] Payload size validation in frame parser
+- [x] Connection state callbacks (`on_disconnect`, `on_reconnect`)
+
+### Milestone 7 — Documentation & Packaging (in progress)
+
+- [x] Google-style docstrings on all public methods
+- [x] 4 examples: `basic_usb.py`, `basic_bluetooth.py`, `continuous_monitoring.py`, `alarm_watcher.py`
+- [x] `demo/live_dashboard.py` — real-time terminal dashboard
+- [ ] MkDocs documentation
+- [ ] PyPI publication
+- [ ] `CONTRIBUTING.md`
 
 ---
 
-## Annexe 0 — Notes d'implémentation critiques (LIRE EN PREMIER)
+## Appendix 0 — Critical Implementation Notes (READ FIRST)
 
-> Ces points sont les pièges les plus probables lors de l'implémentation. Chaque développeur doit lire cette section avant d'écrire la moindre ligne de code.
+> These are the most likely pitfalls during implementation. Every developer must read this section before writing any code.
 
-### N1. Le champ LEN inclut l'ID (CORRIGÉ en v1.1)
+### N1. LEN Field Includes ID (CORRECTED in v1.1)
 
-Le texte du manuel dit « length of XXXXX + CRC » ce qui est ambigu. **L'analyse des trames d'exemple prouve que LEN = ID(2) + Payload(N) + CRC(2) = N + 4.**
+The manual text says "length of XXXXX + CRC" which is ambiguous. **Analysis of example frames proves that LEN = ID(2) + Payload(N) + CRC(2) = N + 4.**
 
-| Trame | Payload réel | LEN attendu | LEN dans le manuel |
+| Frame | Actual Payload | Expected LEN | LEN in Manual |
 |---|---|---|---|
 | Device Info (ID=0) | 65 bytes | 65 + 2 + 2 = 69 | 0x0045 = 69 ✓ |
 | Device Data (ID=1) | 47 bytes | 47 + 2 + 2 = 51 | 0x0033 = 51 ✓ |
 
-**Impact code :** `payload_size = LEN - 4` (pas LEN - 2). Erreur = désynchronisation + échec CRC systématique.
+**Code impact:** `payload_size = LEN - 4` (not LEN - 2). Getting this wrong = desynchronization + systematic CRC failure.
 
-### N2. Bitfields C ≠ struct Python
+### N2. C Bitfields ≠ Python struct
 
-Python `struct` ne supporte pas les champs de bits. Pour `Time_t` et `Date_t`, il faut :
+Python `struct` does not support bit fields. For `Time_t` and `Date_t`:
 1. `struct.unpack("<I", data)` → uint32 little-endian
-2. Masques binaires pour isoler chaque champ
+2. Bitmasks to isolate each field
 
-Exemple vérifié : `0x066841EE` → Hours=14, Minutes=15, Seconds=8, Ms=820, Daylight=0
+Verified example: `0x066841EE` → Hours=14, Minutes=15, Seconds=8, Ms=820, Daylight=0
 
-### N3. Battery level_percent non fiable en USB
+### N3. Battery level_percent Unreliable on USB
 
-Quand `BatteryState.usb_connected == True`, le hardware rapporte un `level_percent` qui ne reflète pas la charge réelle. Le parser doit forcer cette valeur à `None` pour éviter que l'utilisateur final ne base des décisions sur une donnée erronée.
+When `BatteryState.usb_connected == True`, the hardware reports a `level_percent` that does not reflect the actual charge. The parser must force this value to `None` to prevent end users from making decisions based on erroneous data.
 
-### N4. Bluetooth : délai post-connexion de 1s obligatoire
+### N4. Bluetooth: Mandatory 1s Post-Connect Delay
 
-Après `BleakClient.connect()`, il faut **impérativement** attendre 1 seconde complète avant d'envoyer la première requête. Sans ce délai, la communication échoue de manière intermittente et non-reproductible — ce qui en fait un bug particulièrement difficile à diagnostiquer.
+After `BleakClient.connect()`, you **must** wait a full 1 second before sending the first request. Without this delay, communication fails intermittently and non-reproducibly — making it a particularly difficult bug to diagnose.
 
-### N5. Bluetooth : keep-alive toutes les 2.5s
+### N5. Bluetooth: 2.5s Keep-Alive Timeout
 
-L'AccuRad coupe la connexion BLE si aucun message valide n'est reçu pendant 2.5s. Le timer de heartbeat doit être intégré dans la couche transport Bluetooth, pas dans le code utilisateur.
+The AccuRad disconnects the BLE connection if no valid message is received within 2.5s. The heartbeat timer must be integrated in the Bluetooth transport layer, not in user code.
 
-### N6. CRC calculé sur ID + Payload (CORRIGÉ en v1.2)
+### N6. CRC Computed on ID + Payload (CORRECTED in v1.2)
 
-Le manuel dit « CRC computed on XXXXX » où XXXXX représente tout entre LEN et CRC dans la trame, soit **ID + Payload**. L'implémentation initiale supposait « payload only » — c'était faux. Vérifié : `CRC16(ID + Payload) = 0x5B02` correspond exactement à la trame device info du manuel. La valeur CRC device data dans le manuel (0xA94F dans les bytes, décodé comme 0x5B02) est une erreur de copier-coller ; la valeur correcte est **0x599E**.
+The manual says "CRC computed on XXXXX" where XXXXX represents everything between LEN and CRC in the frame, i.e., **ID + Payload**. The initial implementation assumed "payload only" — that was wrong. Verified: `CRC16(ID + Payload) = 0x5B02` matches exactly the manual's device info frame. The device data CRC value in the manual (0xA94F in bytes, decoded as 0x5B02) is a copy-paste error; the correct value is **0x599E**.
 
-### N7. Bluetooth Windows : scan-first obligatoire (ajouté en v1.2)
+### N7. Bluetooth Windows: Scan-First Required (added in v1.2)
 
-Sur Windows (backend WinRT), `BleakClient(address)` ne trouve pas l'appareil par adresse MAC seule. Il faut d'abord scanner avec `BleakScanner.find_device_by_address()` puis passer le `BLEDevice` résultant à `BleakClient`. De plus, le timeout de connexion par défaut doit être **15s** (pas 5s) car la découverte GATT est lente sur Windows.
+On Windows (WinRT backend), `BleakClient(address)` cannot find the device by MAC address alone. You must first scan with `BleakScanner.find_device_by_address()` then pass the resulting `BLEDevice` to `BleakClient`. Additionally, the default connection timeout must be **15s** (not 5s) because GATT discovery is slow on Windows.
 
 ---
 
-## Annexe A — Référence rapide du protocole
+## Appendix A — Protocol Quick Reference
 
-### Séquences de requêtes (à envoyer telles quelles)
+### Request Sequences (send as-is)
 
-| Requête | ID | Séquence hexadécimale |
+| Request | ID | Hex Sequence |
 |---|---|---|
 | Device Information | 0 | `7E 04 00 10 A7 07 46 E7` |
 | Device Measurements | 1 | `7E 04 00 11 A7 1E 43 E7` |
 
-### Format de trame réponse
+### Response Frame Format
 
 ```
 ┌─────────────┬──────────┬──────────┬─────────────────┬──────────┐
@@ -534,40 +551,40 @@ Sur Windows (backend WinRT), `BleakClient(address)` ne trouve pas l'appareil par
                           ◄──────── LEN = N + 4 ────────►
 ```
 
-> **ATTENTION — Calcul de LEN :** Le champ LEN inclut l'ID (2 bytes) + le Payload (N bytes) + le CRC (2 bytes), soit **LEN = N + 4**. Ce n'est PAS uniquement Payload + CRC.
+> **WARNING — LEN Calculation:** The LEN field includes ID (2 bytes) + Payload (N bytes) + CRC (2 bytes), i.e., **LEN = N + 4**. It is NOT Payload + CRC only.
 >
-> **Preuve par les trames du manuel :**
-> - Device Info (ID=0) : Payload = 65 bytes → LEN = 65 + 2 + 2 = **69 = 0x0045** ✓
-> - Device Data (ID=1) : Payload = 47 bytes → LEN = 47 + 2 + 2 = **51 = 0x0033** ✓
+> **Proof from manual frames:**
+> - Device Info (ID=0): Payload = 65 bytes → LEN = 65 + 2 + 2 = **69 = 0x0045** ✓
+> - Device Data (ID=1): Payload = 47 bytes → LEN = 47 + 2 + 2 = **51 = 0x0033** ✓
 
 - **LEN** = ID (2 bytes) + Payload (N bytes) + CRC (2 bytes) = **N + 4**
-- **Payload size** = LEN - 4 (pour extraire le payload brut depuis LEN)
-- **CRC16** calculé sur **ID + payload** (polynôme 0xAC5E) — voir Annexe 0, N6
-- Byte order : little-endian pour les mots multi-octets
-- Bit order : MSB first dans chaque byte
+- **Payload size** = LEN - 4 (to extract raw payload from LEN)
+- **CRC16** computed on **ID + payload** (polynomial 0xAC5E) — see Appendix 0, N6
+- Byte order: little-endian for multi-byte words
+- Bit order: MSB first within each byte
 
-### UUIDs Bluetooth BLE
+### Bluetooth BLE UUIDs
 
-| Caractéristique | UUID |
+| Characteristic | UUID |
 |---|---|
 | UART Service | `49535343-FE7D-4AE5-8FA9-9FAFD205E455` |
 | UART TX (Notify/Write) | `49535343-1E4D-4BD9-BA61-23C647249616` |
 
 ---
 
-## Annexe B — Tailles des payloads
+## Appendix B — Payload Sizes
 
-| Frame ID | Payload (N) | LEN = N + 4 | Taille totale trame (11 + 2 + LEN) |
+| Frame ID | Payload (N) | LEN = N + 4 | Total Frame Size (11 + 2 + LEN) |
 |---|---|---|---|
 | 0 (Device Info) | 65 bytes (16+16+16+4+4+8+1) | 69 (0x0045) | 11 + 2 + 69 = **82 bytes** |
 | 1 (Device Data) | 47 bytes (21+16+2+4+4) | 51 (0x0033) | 11 + 2 + 51 = **64 bytes** |
 
-> **Décomposition de la trame complète :** Start Marker (11) + LEN (2) + ID (2) + Payload (N) + CRC (2).
-> Le champ LEN couvre les bytes après lui-même : ID (2) + Payload (N) + CRC (2) = N + 4.
+> **Complete frame breakdown:** Start Marker (11) + LEN (2) + ID (2) + Payload (N) + CRC (2).
+> The LEN field covers bytes after itself: ID (2) + Payload (N) + CRC (2) = N + 4.
 
-### Détail payload ID=0 (Device Information)
+### Payload Detail ID=0 (Device Information)
 
-| Offset | Taille | Champ |
+| Offset | Size | Field |
 |---|---|---|
 | 0 | 16 | Manufacturer (string, zero-terminated) |
 | 16 | 16 | Part Number (string, zero-terminated) |
@@ -577,9 +594,9 @@ Sur Windows (backend WinRT), `BleakClient(address)` ne trouve pas l'appareil par
 | 56 | 8 | DateTime (Time_t 4B + Date_t 4B) |
 | 64 | 1 | Timezone Index (uint8) |
 
-### Détail payload ID=1 (Device Data)
+### Payload Detail ID=1 (Device Data)
 
-| Offset | Taille | Champ |
+| Offset | Size | Field |
 |---|---|---|
 | 0 | 1 | Merged State (uint8, bitfield) |
 | 1 | 4 | Dose Rate µSv/h (float32 LE) |
@@ -598,4 +615,4 @@ Sur Windows (backend WinRT), `BleakClient(address)` ne trouve pas l'appareil par
 
 ---
 
-*Fin du PRD — Ce document constitue la référence complète pour le développement de l'API AccuRad PRD.*
+*End of PRD — This document is the complete reference for AccuRad PRD API development.*

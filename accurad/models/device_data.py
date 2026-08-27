@@ -6,7 +6,7 @@ Reference: protocol_reference.json -> payloads -> id_1_device_data
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -126,3 +126,43 @@ class DeviceData:
     battery: BatteryData
     system_state: SystemState
     measurement_id: int
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to a JSON-serializable dictionary (recursive)."""
+        return {
+            "merged": {
+                "state": {
+                    "origin": self.merged.state.origin.name,
+                    "prd_15kev_incoherence": self.merged.state.prd_15kev_incoherence,
+                    "overload": self.merged.state.overload,
+                    "initialized": self.merged.state.initialized,
+                },
+                "dose_rate_usv_h": self.merged.dose_rate_usv_h,
+                "count_rate_cps": self.merged.count_rate_cps,
+                "background_dose_rate_usv_h": self.merged.background_dose_rate_usv_h,
+                "background_count_rate_cps": self.merged.background_count_rate_cps,
+                "level": self.merged.level,
+            },
+            "dose": {
+                "dose_datetime": self.dose.dose_datetime.isoformat(),
+                "dose_usv": self.dose.dose_usv,
+                "duration_s": self.dose.duration_s,
+            },
+            "battery": {
+                "state": {
+                    "level_too_low": self.battery.state.level_too_low,
+                    "level_critical": self.battery.state.level_critical,
+                    "usb_connected": self.battery.state.usb_connected,
+                    "failure": self.battery.state.failure,
+                    "initialized": self.battery.state.initialized,
+                },
+                "level_percent": self.battery.level_percent,
+            },
+            "system_state": {
+                "is_ready": self.system_state.is_ready(),
+                "initialized": self.system_state.initialized,
+                "alarms": self.system_state.get_active_alarms(),
+                "faults": self.system_state.get_active_faults(),
+            },
+            "measurement_id": self.measurement_id,
+        }

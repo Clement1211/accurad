@@ -10,6 +10,7 @@ This module is only available when the ``bluetooth`` extra is installed:
 from __future__ import annotations
 
 import asyncio
+import logging
 import struct
 import threading
 import time
@@ -26,6 +27,8 @@ from accurad._constants import (
 )
 from accurad.connection.base import AccuRadConnection
 from accurad.exceptions import BluetoothConnectionError, ReadTimeoutError
+
+logger = logging.getLogger("accurad.connection.bluetooth")
 
 try:
     from bleak import BleakClient, BleakScanner
@@ -64,17 +67,28 @@ class BluetoothConnection(AccuRadConnection):
         address: str,
         connect_timeout: float = DEFAULT_BLE_CONNECT_TIMEOUT_S,
         read_timeout: float = DEFAULT_READ_TIMEOUT_S,
+        keepalive: bool = True,
     ) -> None:
-        """Initialize BLE connection parameters."""
+        """Initialize BLE connection parameters.
+
+        Args:
+            address: BLE MAC address or device name.
+            connect_timeout: Connection timeout in seconds.
+            read_timeout: Read timeout in seconds.
+            keepalive: Auto-send heartbeat to prevent BLE disconnect.
+
+        """
         _require_bleak()
         self._address = address
         self._connect_timeout = connect_timeout
         self._read_timeout = read_timeout
+        self._keepalive_enabled = keepalive
         self._client: BleakClient | None = None
         self._rx_buffer = bytearray()
         self._rx_event: asyncio.Event | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
+        self._keepalive_timer: threading.Timer | None = None
         self._last_send_time: float = 0.0
         self._connected = False
 
@@ -104,26 +118,34 @@ class BluetoothConnection(AccuRadConnection):
         self._rx_event = asyncio.Event()
 
         # Scan first to get a BLEDevice object (required on Windows WinRT)
+        logger.info(
+            "Scanning for BLE device %s (timeout=%ss)",
+            self._address, self._connect_timeout,
+        )
         try:
             device = await BleakScanner.find_device_by_address(
                 self._address, timeout=self._connect_timeout
             )
         except (BleakError, OSError) as exc:
+            logger.error("BLE scan failed for '%s': %s", self._address, exc)
             raise BluetoothConnectionError(
                 f"BLE scan failed for '{self._address}': {exc}"
             ) from exc
 
         if device is None:
+            logger.error("BLE device '%s' not found", self._address)
             raise BluetoothConnectionError(
                 f"Device '{self._address}' not found. "
                 "Make sure it is in discoverable mode."
             )
 
+        logger.info("BLE device found: %s (%s)", device.name, device.address)
         self._client = BleakClient(device, timeout=self._connect_timeout)
 
         try:
             await self._client.connect()
         except (BleakError, OSError) as exc:
+            logger.error("BLE connect failed for '%s': %s", self._address, exc)
             raise BluetoothConnectionError(
                 f"Failed to connect to '{self._address}': {exc}"
             ) from exc
@@ -133,13 +155,20 @@ class BluetoothConnection(AccuRadConnection):
             BLE_UART_TX_UUID,
             self._notification_handler,
         )
+        logger.debug("Subscribed to BLE UART TX notifications")
 
         # MANDATORY: Wait 1 second after connect before first request
         # (PRD.md N4 — omitting this causes intermittent failures)
+        logger.debug("Post-connect delay: %.1fs", BLE_POST_CONNECT_DELAY_S)
         await asyncio.sleep(BLE_POST_CONNECT_DELAY_S)
 
         self._connected = True
         self._last_send_time = time.monotonic()
+        logger.info("BLE connected to %s", self._address)
+
+        # Start keep-alive timer if enabled
+        if self._keepalive_enabled:
+            self._start_keepalive()
 
     def _notification_handler(
         self, _sender: object, data: bytearray
@@ -149,8 +178,44 @@ class BluetoothConnection(AccuRadConnection):
         if self._rx_event is not None:
             self._rx_event.set()
 
+    def _start_keepalive(self) -> None:
+        """Schedule the next keep-alive check."""
+        if not self._connected:
+            return
+        self._keepalive_timer = threading.Timer(
+            BLE_KEEPALIVE_INTERVAL_S,
+            self._keepalive_tick,
+        )
+        self._keepalive_timer.daemon = True
+        self._keepalive_timer.start()
+
+    def _keepalive_tick(self) -> None:
+        """Send heartbeat if idle too long, then reschedule."""
+        if not self._connected or self._loop is None:
+            return
+        if self.needs_keepalive:
+            logger.debug("Sending BLE keep-alive heartbeat")
+            try:
+                from accurad._constants import DEVICE_DATA_REQUEST
+
+                future = asyncio.run_coroutine_threadsafe(
+                    self._async_send(DEVICE_DATA_REQUEST), self._loop,
+                )
+                future.result(timeout=2.0)
+            except Exception:
+                logger.warning("Keep-alive send failed", exc_info=True)
+        self._start_keepalive()
+
+    def _stop_keepalive(self) -> None:
+        """Cancel the keep-alive timer."""
+        if self._keepalive_timer is not None:
+            self._keepalive_timer.cancel()
+            self._keepalive_timer = None
+
     def disconnect(self) -> None:
         """Disconnect from the BLE device and stop the event loop."""
+        logger.info("Disconnecting BLE from %s", self._address)
+        self._stop_keepalive()
         if self._loop is not None and self._client is not None:
             try:
                 future = asyncio.run_coroutine_threadsafe(
@@ -184,6 +249,7 @@ class BluetoothConnection(AccuRadConnection):
 
     async def _async_send(self, data: bytes) -> None:
         """Async implementation of BLE send."""
+        logger.debug("BLE TX %d bytes: %s", len(data), data.hex())
         try:
             await self._client.write_gatt_char(  # type: ignore[union-attr]
                 BLE_UART_TX_UUID,
@@ -192,6 +258,7 @@ class BluetoothConnection(AccuRadConnection):
             )
             self._last_send_time = time.monotonic()
         except (BleakError, OSError) as exc:
+            logger.error("BLE write failed: %s", exc)
             raise BluetoothConnectionError(
                 f"BLE write failed: {exc}"
             ) from exc
@@ -250,6 +317,7 @@ class BluetoothConnection(AccuRadConnection):
                     if len(self._rx_buffer) >= total_size:
                         frame_data = bytes(self._rx_buffer[:total_size])
                         del self._rx_buffer[:total_size]
+                        logger.debug("BLE RX %d bytes: %s", len(frame_data), frame_data.hex())
                         return frame_data
 
             # Wait for more data

@@ -11,10 +11,13 @@ Therefore: payload_size = LEN - 4, NOT LEN - 2.
 
 from __future__ import annotations
 
+import logging
 import struct
 from dataclasses import dataclass
 
 from accurad._constants import (
+    DEVICE_DATA_PAYLOAD_SIZE,
+    DEVICE_INFO_PAYLOAD_SIZE,
     ID_FIELD_SIZE,
     LEN_FIELD_SIZE,
     LEN_OVERHEAD,
@@ -25,8 +28,16 @@ from accurad.exceptions import (
     CRCMismatchError,
     IncompleteFrameError,
     InvalidFrameError,
+    PayloadSizeMismatchError,
 )
 from accurad.protocol.crc import crc16
+
+logger = logging.getLogger("accurad.protocol.frame")
+
+_EXPECTED_PAYLOAD_SIZES: dict[int, int] = {
+    0: DEVICE_INFO_PAYLOAD_SIZE,
+    1: DEVICE_DATA_PAYLOAD_SIZE,
+}
 
 
 @dataclass(frozen=True)
@@ -66,9 +77,12 @@ def parse_frame(data: bytes) -> ParsedFrame:
         CRCMismatchError: If the computed CRC doesn't match.
 
     """
+    logger.debug("Parsing frame (%d bytes): %s", len(data), data.hex())
+
     # 1. Find and validate start marker
     marker_pos = data.find(START_MARKER)
     if marker_pos == -1:
+        logger.warning("Start marker not found in %d bytes", len(data))
         raise InvalidFrameError("Start marker '#!AccuRad!#' not found in data")
 
     # Position after the start marker
@@ -110,9 +124,29 @@ def parse_frame(data: bytes) -> ParsedFrame:
     # 6. Validate CRC — computed on ID + payload (= "XXXXX" in manual terminology)
     id_plus_payload = data[id_pos : id_pos + ID_FIELD_SIZE + payload_size]
     computed_crc = crc16(id_plus_payload)
+    logger.debug(
+        "Frame ID=%d, payload=%d bytes, CRC computed=0x%04X received=0x%04X",
+        frame_id, payload_size, computed_crc, received_crc,
+    )
     if computed_crc != received_crc:
+        logger.warning(
+            "CRC mismatch: computed 0x%04X, received 0x%04X",
+            computed_crc, received_crc,
+        )
         raise CRCMismatchError(expected=computed_crc, received=received_crc)
 
+    # 7. Validate payload size against expected size for known frame IDs
+    expected_size = _EXPECTED_PAYLOAD_SIZES.get(frame_id)
+    if expected_size is not None and payload_size != expected_size:
+        logger.warning(
+            "Payload size mismatch for ID=%d: expected %d, got %d",
+            frame_id, expected_size, payload_size,
+        )
+        raise PayloadSizeMismatchError(
+            frame_id=frame_id, expected=expected_size, received=payload_size,
+        )
+
+    logger.debug("Frame parsed OK: ID=%d, %d-byte payload", frame_id, payload_size)
     return ParsedFrame(frame_id=frame_id, payload=payload)
 
 
