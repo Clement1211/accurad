@@ -177,7 +177,7 @@ logging.getLogger("accurad").setLevel(logging.DEBUG)
 | `get_measurements(timeout=None)` | Read current measurements |
 | `disconnect()` | Close connection |
 | `ping(timeout=1.0)` | Health check (True/False) |
-| `wait_for_ready(timeout=30.0)` | Block until device is initialized |
+| `wait_for_ready(timeout=30.0, interval=0.5)` | Block until device is initialized |
 | `discover_usb()` | List available USB COM ports |
 | `discover_bluetooth(timeout=10.0)` | Scan for AccuRad BLE devices |
 
@@ -185,9 +185,9 @@ logging.getLogger("accurad").setLevel(logging.DEBUG)
 
 | Model | Key Fields |
 |---|---|
-| `DeviceInfo` | `manufacturer`, `serial_number`, `firmware_version`, `device_datetime` |
+| `DeviceInfo` | `manufacturer`, `part_number`, `serial_number`, `firmware_version`, `firmware_number`, `device_datetime`, `timezone_index`, `timezone_label` |
 | `DeviceData` | `merged`, `dose`, `battery`, `system_state`, `measurement_id` |
-| `MergedMeasurement` | `dose_rate_usv_h`, `count_rate_cps`, `background_dose_rate_usv_h`, `level` |
+| `MergedMeasurement` | `state`, `dose_rate_usv_h`, `count_rate_cps`, `background_dose_rate_usv_h`, `background_count_rate_cps`, `level` |
 | `DoseData` | `dose_usv`, `duration_s`, `dose_datetime` |
 | `BatteryData` | `level_percent` (None if USB), `state` |
 | `SystemState` | `is_ready()`, `has_alarms()`, `get_active_alarms()`, `get_active_faults()` |
@@ -198,7 +198,7 @@ All models are **frozen dataclasses** (immutable) with a `to_dict()` method for 
 
 | Function | Description |
 |---|---|
-| `stream_measurements(device, interval, on_error, max_errors)` | Generator yielding `DeviceData` |
+| `stream_measurements(device, interval, callback, on_error, max_errors)` | Generator yielding `DeviceData` |
 | `start_logging(device, path, fmt, interval, on_error, max_errors)` | Background file logger |
 | `stop_logging()` | Stop active logging session |
 
@@ -238,7 +238,7 @@ accurad/
 ## Development
 
 ```bash
-git clone https://github.com/clementMusic/accurad.git
+git clone https://github.com/Clement1211/accurad.git
 cd accurad
 pip install -e ".[dev,bluetooth]"
 
