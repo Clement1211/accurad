@@ -38,7 +38,7 @@ accurad/                      # Main package
 
 ## Critical Implementation Rules
 
-1. **LEN = ID(2) + Payload(N) + CRC(2) = N + 4** — NOT N + 2. See PRD.md Annexe 0, N1.
+1. **LEN = ID(2) + Payload(N) + CRC(2) = N + 4** — NOT N + 2. See PRD.md Appendix 0, N1.
 2. **Bitfields:** Use `struct.unpack("<I")` then bitmask extraction. Never try struct for C bitfields.
 3. **Battery:** Force `level_percent = None` when `usb_connected == True`.
 4. **BLE post-connect:** Always wait 1.0s after BLE connect before first request. Non-negotiable.
