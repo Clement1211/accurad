@@ -39,3 +39,7 @@ desktop.ini
 
 # Claude
 .claude/
+.mcp.json
+
+# Device manual (copyrighted, not for distribution)
+*.pdf
